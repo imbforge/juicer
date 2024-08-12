@@ -35,51 +35,19 @@
 juicer_version="1.5.7" 
 ## Set the following variables to work with your system
 
-# Aiden Lab specific check
-isRice=$(hostname | awk '{if ($1~/rice/){print 1}else {print 0}}')
-isBCM=$(hostname | awk '{if ($1~/bcm/){print 1}else {print 0}}')
-isVoltron=0
 ## path additionals, make sure paths are correct for your system
 ## use cluster load commands
-if [ $isRice -eq 1 ] 
-then
-    myPath=/bin:$PATH 
-    load_bwa="module load BioBuilds/2015.04" 
-    load_java="module load Java/8.0.3.22" 
-    load_gpu="module load gcccuda/2016a;module load CUDA/8.0.54;" 
-    # Juicer directory, contains scripts/, references/, and restriction_sites/
-    # can also be set in options via -D
-    juiceDir="/projects/ea14/juicer" ### RICE
-    # default queue, can also be set in options via -q
-    queue="commons"
-    # default long queue, can also be set in options via -l
-    long_queue="commons"
-    long_queue_time="1440"
-elif [ $isBCM -eq 1 ]
-then    
-    # Juicer directory, contains scripts/, references/, and restriction_sites/
-    # can also be set in options via -D
-    juiceDir="/storage/aiden/juicer/"
-    # default queue, can also be set in options via -q
-    queue="mhgcp"
-    queue_time="1200"
-    # default long queue, can also be set in options via -l
-    long_queue="mhgcp"
-    long_queue_time="3600"
-else
-    isVoltron=1
-    export PATH=/gpfs0/biobuild/biobuilds-2016.11/bin:$PATH 
-    #unset MALLOC_ARENA_MAX
-    load_gpu="CUDA_VISIBLE_DEVICES=0,1,2,3"
-    # Juicer directory, contains scripts/, references/, and restriction_sites/
-    # can also be set in options via -D
-    juiceDir="/gpfs0/juicer/"
-    # default queue, can also be set in options
-    queue="commons"
-    # default long queue, can also be set in options
-    long_queue="long"
-    long_queue_time="10080"
-fi
+
+# Juicer directory, contains scripts/, references/, and restriction_sites/
+# can also be set in options via -D
+juiceDir="/fsimb/common/ubuntu_tools/juicer/"
+load_bwa="module load bwa/0.7.17"
+load_java="module load jdk/18.0.2.1"
+# default queue, can also be set in options
+queue="long"
+# default long queue, can also be set in options
+long_queue="long"
+long_queue_time="10080"
 
 # unique name for jobs in this run
 groupname="a$(date +%s)"
@@ -278,23 +246,16 @@ then
     exit 1
 fi
 
-  if [ $isRice -eq 1 ]
-  then
-    if ! ${juiceDir}/scripts/sort --parallel=48 -S8G -T ${tmpdir} -m -k2,2d -k6,6d ${merged_names} > ${outputdir}/merged_nodups.txt
-    then
-      echo "***! Some problems occurred somewhere in creating sorted merged_nodups files."
-      exit 1
-    fi
-  else
-    if ! sort --parallel=40 -T ${tmpdir} -m -k2,2d -k6,6d ${merged_names} > ${outputdir}/merged_nodups.txt
-    then 
-      echo "***! Some problems occurred somewhere in creating sorted merged_nodups files."
-      exit 1
-    else
-      echo "(-: Finished sorting all merged_nodups files into a single merge."
-      rm -r ${tmpdir}
-    fi
-  fi
+
+if ! sort --parallel=40 -T ${tmpdir} -m -k2,2d -k6,6d ${merged_names} > ${outputdir}/merged_nodups.txt
+then 
+    echo "***! Some problems occurred somewhere in creating sorted merged_nodups files."
+    exit 1
+else
+    echo "(-: Finished sorting all merged_nodups files into a single merge."
+    rm -r ${tmpdir}
+fi
+
 touch $touchfile2
 MRGSRT`
     dependmerge="#SBATCH -d afterok:$jid2"
@@ -425,12 +386,6 @@ if [ -z $early ]
 then
 # Create loop lists file for MQ > 30
     touchfile7=${megadir}/touch7
-    if [ $isRice -eq 1 ] || [ $isVoltron -eq 1 ]
-    then
-	if [  $isRice -eq 1 ]
-	then
-	    sbatch_req="#SBATCH --gres=gpu:kepler:1"
-	fi
 	jid7=`sbatch <<- HICCUPS | egrep -o -e "\b[0-9]+$"
 	#!/bin/bash -l
 	#SBATCH -p ${long_queue}
@@ -441,15 +396,15 @@ then
 	#SBATCH -o $logdir/hiccups-%j.out
 	#SBATCH -e $logdir/hiccups-%j.err
 	#SBATCH -J "${groupname}_hiccups"
+    #SBATCH --gres=gpu:1
 	${sbatchdepend}
-	${sbatch_req}
 	$load_java
 	if [ ! -f "${touchfile6}" ]
 	then
 	   echo "***! HIC maps q=30 job failed."
 	   exit 1
 	fi
-	${load_gpu}
+	export CUDA_VISIBLE_DEVICES=0
 	${juiceDir}/scripts/juicer_hiccups.sh -j ${juiceDir}/scripts/juicer_tools -i $outputdir/inter_30.hic -m ${juiceDir}/references/motif -g $genomeID
 	touch $touchfile7
 	HICCUPS`
@@ -516,10 +471,6 @@ fi
 rm -r ${tmpdir}
 rm $touchfile1 $touchfile2 $touchfile3 $touchfile4 $touchfile5 $touchfile6 $touchfile7 $touchfile8
 echo "(-: Successfully completed making mega map. Done. :-)"
-if [ $isRice -eq 1 ]
-then
-   echo $topDir, $site, $genomeID, $genomePath | mail -r MegaJuicer@rice.edu -s \"Mega Juicer pipeline finished successfully @ Rice\" -t $USER@rice.edu;
-fi
 FINAL`
 else
     jid9=`sbatch <<- FINAL | egrep -o -e "\b[0-9]+$"
