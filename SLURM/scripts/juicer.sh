@@ -987,7 +987,7 @@ FINCLN1`
 	then 
 		echo "***! Found errorfile. Exiting." 
 		exit 1 
-	fi 
+	fi
 	
 	if [ "$nofrag" -eq 1 ]
 	then 
@@ -1015,12 +1015,12 @@ HIC`
 	${load_java}
 	export _JAVA_OPTIONS="-Xmx49152m -Xms49152m"
 	date
-        if [ -f "${errorfile}" ]
+    if [ -f "${errorfile}" ]
         then 
             echo "***! Found errorfile. Exiting." 
             exit 1 
-        fi 
-        if [ "$nofrag" -eq 1 ]
+    fi 
+    if [ "$nofrag" -eq 1 ]
         then 
 	    ${juiceDir}/scripts/juicer_tools pre -s $outputdir/inter_30.txt -g $outputdir/inter_30_hists.m -q 30 $outputdir/merged_nodups.txt $outputdir/inter_30.hic $genomePath
 	else
@@ -1039,7 +1039,7 @@ jid=`sbatch <<- HICCUPS | egrep -o -e "\b[0-9]+$"
 	#!/bin/bash -l
 	#SBATCH -p gpulong
 	#SBATCH --gres=gpu:1
-	#SBATCH --mem-per-cpu=4G
+	#SBATCH --mem=32G
 	#SBATCH -o $debugdir/hiccups_wrap-%j.out
 	#SBATCH -e $debugdir/hiccups_wrap-%j.err
 	#SBATCH -t $queue_time
@@ -1049,6 +1049,7 @@ jid=`sbatch <<- HICCUPS | egrep -o -e "\b[0-9]+$"
 
 	export CUDA_VISIBLE_DEVICES=0
 	${load_java}
+	export _JAVA_OPTIONS="-Xmx30000m -Xms30000m"
 	date
 	nvcc -V
 		if [ -f "${errorfile}" ]
