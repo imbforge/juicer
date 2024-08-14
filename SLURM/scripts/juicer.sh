@@ -72,7 +72,7 @@ juicer_version="1.6"
 
 load_bwa="module load bwa/0.7.17"
 load_java="module load jdk/18.0.2.1"
-# Juicer directory, contains scripts/, references/, and restriction_sites/
+# Juicer directory, contains scripts
 # can also be set in options via -D
 juiceDir="/fsimb/common/ubuntu_tools/juicer"
 # default queue, can also be set in options
@@ -100,7 +100,7 @@ groupname="a$(date +%s)"
 topDir=$(pwd)
 # restriction enzyme, can also be set in options
 # default: not set
-site="none"
+site="MboI"
 # genome ID, default to human, can also be set in options
 genomeID="hg19"
 # description, default empty
@@ -261,7 +261,7 @@ fi
 
 if [ -z "$site_file" ]
 then
-    site_file="${juiceDir}/restriction_sites/${genomeID}_${site}.txt"
+    site_file="/fsimb/common/ubuntu_tools/juicer/restriction_sites/${genomeID}_${site}.txt"
 fi
 
 ## Check that site file exists, needed for fragment number for merged_nodups
