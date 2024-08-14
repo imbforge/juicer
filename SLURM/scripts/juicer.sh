@@ -72,7 +72,6 @@ juicer_version="1.6"
 
 load_bwa="module load bwa/0.7.17"
 load_java="module load jdk/18.0.2.1"
-call_gem="module load shpc gem-mapper && gem-mapper --3c"
 # Juicer directory, contains scripts/, references/, and restriction_sites/
 # can also be set in options via -D
 juiceDir="/fsimb/common/ubuntu_tools/juicer"
@@ -135,7 +134,6 @@ userHelp="* [account name]: user account name on cluster"
 excludeHelp="* -f: include fragment-delimited maps in hic file creation"
 justHelp="* -j: just exact duplicates excluded at dedupping step"
 earlyexitHelp="* -e: Use for an early exit, before the final creation of the hic files"
-gemHelp="* -c: use GEM3 as aligner"
 helpHelp="* -h: print this help and exit"
 
 
@@ -159,7 +157,6 @@ printHelpAndExit() {
     echo -e "$threadsHelp"
     echo -e "$userHelp"
     echo -e "$earlyexitHelp"
-    echo -e "$gemHelp"
     echo "$excludeHelp"
     echo "$helpHelp"
     exit "$1"
@@ -188,7 +185,6 @@ while getopts "d:g:a:hq:s:p:l:y:z:S:C:D:Q:L:b:A:t:jfec" opt; do
 	A) user=$OPTARG ;;
 	j) justexact=1 ;;
 	e) earlyexit=1 ;;
-	c) gemmapper=1 ;;
 	[?]) printHelpAndExit 1;;
     esac
 done
@@ -235,13 +231,9 @@ if [ ! -e "$refSeq" ]; then
 fi
 
 ## Check that index for refSeq exists
-if [[ ! -e "${refSeq}.bwt" ]] && [[ -z $gemmapper ]]
+if [[ ! -e "${refSeq}.bwt" ]]
 then
     echo "***! Reference sequence $refSeq does not appear to have been indexed. Please run bwa index on this file before running juicer.";
-    exit 1;
-elif [[ -n $gemmapper ]] && [[ ! -e "${refSeq%.*}.gem" ]]
-then
-    echo "***! Reference sequence $refSeq does not appear to have been indexed. Please run gem index on this file before running juicer.";
     exit 1;
 fi
 
@@ -259,16 +251,6 @@ if [ -z "$ligation" ]; then
 	    echo "$site not listed as recognized enzyme."
 	    echo "Ligation junction is undefined"
     esac
-fi
-
-if [[ -n $gemmapper ]] 
-then
-    if [[ "$site" == "none" ]]
-    then
-	re=""
-    else
-	re=$(echo $site | tr "+" "\n" | awk '{str=str" --restriction-enzyme "$1}END{print str}')
-    fi
 fi
 
 ## If DNAse-type experiment, no fragment maps; or way to get around site file
@@ -558,27 +540,15 @@ CNTLIG`
 
 		# Align reads
 		date
-            if [ \$gemmapper ]
-			then
-				echo "Running command $call_gem $re -I ${refSeq%.*}.gem -t $threads -1 $name1$ext -2 $name2$ext -o $name$ext.sam"
-				srun --ntasks=1 $call_gem $re -I ${refSeq%.*}.gem -t $threads -1 $name1$ext -2 $name2$ext -o $name$ext.sam
-			if [ \$? -ne 0 ]
-			then  
-				touch $errorfile
-				exit 1
-			else
-				echo "(-: Gem align of $name$ext.sam done successfully"
-			fi
+
+		echo "Running command bwa mem -SP5M -t $threads $refSeq $name1$ext $name2$ext > $name$ext.sam" 
+		srun --ntasks=1 bwa mem -SP5M -t $threads $refSeq $name1$ext $name2$ext > $name$ext.sam
+		if [ \$? -ne 0 ]
+		then
+			touch $errorfile
+			exit 1
 		else
-			echo "Running command bwa mem -SP5M -t $threads $refSeq $name1$ext $name2$ext > $name$ext.sam" 
-			srun --ntasks=1 bwa mem -SP5M -t $threads $refSeq $name1$ext $name2$ext > $name$ext.sam
-			if [ \$? -ne 0 ]
-			then  
-				touch $errorfile
-				exit 1
-			else
-				echo "(-: Mem align of $name$ext.sam done successfully"
-			fi
+			echo "(-: Mem align of $name$ext.sam done successfully"
 		fi
 		date
 ALGNR1`
